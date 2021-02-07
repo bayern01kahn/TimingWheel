@@ -26,6 +26,9 @@ public class TimingWheel {
 
     private Long currentTime;
 
+    /**
+     * 上层时间轮
+     */
     private volatile TimingWheel overflowWheel;
 
     private TimerTaskList[] buckets;
@@ -44,32 +47,35 @@ public class TimingWheel {
         }
     }
 
+    /**
+     * 添加任务
+     */
     public boolean add(TimerTaskEntry timerTaskEntry) {
         long expiration = timerTaskEntry.getExpirationMs();
 
         if (timerTaskEntry.cancelled()) {
             // Cancelled
             return false;
-        } else if (expiration < currentTime + tickMs) {
+        } else if (expiration < currentTime + tickMs) {  //如果已经到期，返回false
             // Already expired
             return false;
-        } else if (expiration < currentTime + interval) {
+        } else if (expiration < currentTime + interval) {  //如果在本层范围内
             // Put in its own bucket
             long virtualId = expiration / tickMs;
-            TimerTaskList bucket = buckets[(int) (virtualId % wheelSize)];
-            bucket.add(timerTaskEntry);
+            TimerTaskList bucket = buckets[(int) (virtualId % wheelSize)];  //计算槽位
+            bucket.add(timerTaskEntry);  // 添加到槽内的双向链表中
 
             // Set the bucket expiration time
-            if (bucket.setExpiration(virtualId * tickMs)) {
+            if (bucket.setExpiration(virtualId * tickMs)) {   //更新槽过期时间
                 // The bucket needs to be enqueued because it was an expired bucket
                 // We only need to enqueue the bucket when its expiration time has changed, i.e. the wheel has advanced
                 // and the previous buckets gets reused; further calls to set the expiration within the same wheel cycle
                 // will pass in the same value and hence return false, thus the bucket with the same expiration will not
                 // be enqueued multiple times.
-                queue.offer(bucket);
+                queue.offer(bucket);   // 将槽加入到delayQueue,通过delayQueue来推进时间
             }
             return true;
-        } else {
+        } else {   // 如果超过本层能表示的延迟时间则将任务添加到上层，这里可以看到上层是按需创建的
             // Out of the interval. Put it into the parent timer
             if (overflowWheel == null) {
                 addOverflowWheel();

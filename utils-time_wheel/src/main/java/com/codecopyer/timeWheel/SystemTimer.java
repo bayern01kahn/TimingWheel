@@ -65,8 +65,10 @@ public class SystemTimer implements Timer, Function<TimerTaskEntry, Void> {
     }
 
     /**
-     * Advance the internal clock, executing any tasks whose expiration has been
-     * reached within the duration of the passed timeout.
+     * 时间轮推进方法:
+     * Kafka 就利用了空间换时间的思想，通过 DelayQueue，来保存每个槽，通过每个槽的过期时间排序。
+     * 这样拥有最早需要执行任务的槽会有优先获取。如果时候未到，那么 delayQueue.poll() 就会阻塞着，
+     * 这样就不会有空推进的情况发送
      *
      * @param timeoutMs
      * @return whether or not any tasks were executed

@@ -5,7 +5,7 @@ public class SystemTimerTest {
         SystemTimer systemTimer = new SystemTimer("timer");
         System.out.println(System.currentTimeMillis());
         for (int i = 0; i < 100; i++) {
-            systemTimer.add(new DelayedOperation(500+i));
+            systemTimer.add(new DelayedOperation(500+i*1000));
         }
         System.out.println(System.nanoTime());
         boolean flag = true;

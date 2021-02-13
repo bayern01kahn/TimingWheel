@@ -1,5 +1,6 @@
 package com.codecopyer.timeWheel;
 
+import java.time.LocalTime;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -65,7 +66,7 @@ public class SystemTimer implements Timer, Function<TimerTaskEntry, Void> {
     }
 
     /**
-     * 时间轮推进方法:
+     * SystemTimer 推进方法:
      * Kafka 就利用了空间换时间的思想，通过 DelayQueue，来保存每个槽，通过每个槽的过期时间排序。
      * 这样拥有最早需要执行任务的槽会有优先获取。如果时候未到，那么 delayQueue.poll() 就会阻塞着，
      * 这样就不会有空推进的情况发送
@@ -78,10 +79,11 @@ public class SystemTimer implements Timer, Function<TimerTaskEntry, Void> {
         try {
             TimerTaskList bucket = delayQueue.poll(timeoutMs, TimeUnit.MILLISECONDS);
             if (bucket != null) {
+                System.out.println("当前时间: "+ LocalTime.now()+" || poll("+timeoutMs+") => success");
                 writeLock.lock();
                 try {
                     while (bucket != null) {
-                        timingWheel.advanceClock(bucket.getExpiration());
+                        timingWheel.advanceClock(bucket.getExpiration());  //时间轮根据 bucket的过期时间来推进
                         bucket.flush(this);
                         bucket = delayQueue.poll();
                     }
@@ -90,6 +92,7 @@ public class SystemTimer implements Timer, Function<TimerTaskEntry, Void> {
                 }
                 return true;
             } else {
+                System.out.println("当前时间: "+ LocalTime.now()+" || poll("+timeoutMs+") => null");
                 return false;
             }
         } catch (InterruptedException e) {

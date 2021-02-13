@@ -1,6 +1,7 @@
 package com.codecopyer.timeWheel;
 
 import javax.annotation.concurrent.NotThreadSafe;
+import java.time.LocalTime;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -8,14 +9,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TimingWheel {
 
     /**
-     * 每一格时间
+     * 每一格时间(基本时间跨度)
      */
     private Long tickMs;
     /**
-     * 格子数
+     * 格子数(时间格个数)
      */
     private Integer wheelSize;
 
+    /**
+     * 整个时间轮的总体时间跨度 (tickMs × wheelSize)
+     */
     private Long interval;
 
     private Long startMs;
@@ -24,6 +28,12 @@ public class TimingWheel {
 
     private DelayQueue<TimerTaskList> queue;
 
+    /**
+     * 表盘指针
+     * 用来表示时间轮当前所处的时间，currentTime是tickMs的整数倍。
+     * currentTime可以将整个时间轮划分为到期部分和未到期部分，currentTime当前指向的时间格也属于到期部分，表示刚好到期，
+     * 需要处理此时间格所对应的TimerTaskList的所有任务
+     */
     private Long currentTime;
 
     /**
@@ -85,14 +95,15 @@ public class TimingWheel {
     }
 
     /**
-     * Try to advance the clock
+     * 时间轮 的 推进
      */
     public void advanceClock(Long timeMs) {
-        if (timeMs >= currentTime + tickMs) {
-            currentTime = timeMs - (timeMs % tickMs);
+        if (timeMs >= currentTime + tickMs) {              //推进时间 需要 >= 当前时间+ 一格的时间
+            currentTime = timeMs - (timeMs % tickMs);      //时间轮当前所处时间 = 传入当前时间 - (传入当前时间 对 每一格的跨度 求余数)
 
-            // Try to advance the clock of the overflow wheel if present
-            if (overflowWheel != null) {
+            System.out.println("当前时间: "+LocalTime.now()+" || 时间轮-"+interval+ " 推进时间: "+timeMs+" 当前所处到期时间: "+ currentTime);
+
+            if (overflowWheel != null) {                   //如果存在上级时间轮 则 递归调用 使用当前时间推进上级时间轮
                 overflowWheel.advanceClock(currentTime);
             }
         }

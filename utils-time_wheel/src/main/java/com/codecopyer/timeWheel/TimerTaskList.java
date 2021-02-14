@@ -40,7 +40,6 @@ class TimerTaskList implements Delayed{
      * @return true 如果到期时间被改变
      */
     public boolean setExpiration(Long expirationMs) {
-        System.out.println("当前时间: "+ LocalTime.now()+" || 更新bucket的过期时间: " + expirationMs);
         return expiration.getAndSet(expirationMs) != expirationMs;
     }
 

@@ -18,15 +18,20 @@ public class SystemTimerTest {
 //            systemTimer.add(new DelayedOperation(500+i*1000));
 //        }
 
-        systemTimer.add(new DelayedOperation(2220));
         //systemTimer.add(new DelayedOperation(300));
-//        systemTimer.add(new DelayedOperation(5000));
+//        systemTimer.add(new DelayedOperation(1000));
+//        systemTimer.add(new DelayedOperation(1000));
+//        systemTimer.add(new DelayedOperation(1000));
+        systemTimer.add(new DelayedOperation(2222));
+//        systemTimer.add(new DelayedOperation(2220));
+//        systemTimer.add(new DelayedOperation(2300));
+//        systemTimer.add(new DelayedOperation(9000));
 
         //System.out.println(System.nanoTime());
         boolean flag = true;
         while (flag) {
             boolean b = systemTimer.advanceClock(addedTime);
-            System.out.println("当前时间: "+LocalTime.now()+" || 外层系统时间 推进=> "+ addedTime +"ms");
+            //System.out.println("当前时间: "+LocalTime.now()+" || 外层系统时间 推进=> "+ addedTime +"ms");
             //flag = b;
         }
     }

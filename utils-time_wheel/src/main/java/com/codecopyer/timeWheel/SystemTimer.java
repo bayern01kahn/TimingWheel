@@ -86,12 +86,12 @@ public class SystemTimer implements Timer, Function<TimerTaskEntry, Void> {
         try {
             TimerTaskList bucket = delayQueue.poll(timeoutMs, TimeUnit.MILLISECONDS);
             if (bucket != null) {
-                System.out.println("当前时间: "+ LocalTime.now()+" || poll("+timeoutMs+") => success. 启动时间轮");
+                System.out.println("当前时间: "+ LocalTime.now()+" || poll("+timeoutMs+") => success. 启动时间轮,推进并更新当前指针");
                 writeLock.lock();
                 try {
                     while (bucket != null) {
-                        timingWheel.advanceClock(bucket.getExpiration());  //时间轮根据 bucket的过期时间来推进
-                        System.out.println("当前时间: "+ LocalTime.now()+" || 时间轮推进结束, 开始尝试执行bucket中所有任务");
+                        timingWheel.advanceClock(bucket.getExpiration());  //时间轮根据 bucket的过期时间来更新当前指针
+                        System.out.println("当前时间: "+ LocalTime.now()+" || 时间轮指针更新结束");
                         bucket.flush(this);
                         bucket = delayQueue.poll();
                     }
@@ -131,7 +131,7 @@ public class SystemTimer implements Timer, Function<TimerTaskEntry, Void> {
         if (!timingWheel.add(timerTaskEntry)) {   //把timerTaskEntry重新add一遍，add的时候会检查任务是否已经到期
             // Already expired or cancelled
             if (!timerTaskEntry.cancelled()) {    //到这里 说明,task 已经过期,那么立即执行.
-                System.out.println("当前时间: "+ LocalTime.now()+" || 尝试执行任务成功,过期时间为: "+ timerTaskEntry.getExpirationMs());
+                System.out.println("当前时间: "+ LocalTime.now()+" || 立即执行任务 (过期时间为: "+ timerTaskEntry.getExpirationMs()+")");
                 taskExecutor.submit(timerTaskEntry.getTimerTask());
             }
         } /*else {
@@ -149,6 +149,9 @@ public class SystemTimer implements Timer, Function<TimerTaskEntry, Void> {
      */
     @Override
     public Void apply(TimerTaskEntry timerTaskEntry) {
+        System.out.println("当前时间: "+ LocalTime.now()+" || " +
+                "取出bucket中的entry尝试重新加入到时间轮中,利用过期判断来触发执行任务"+
+                "\n\t\t\t\t\t\t 因为之前poll出来了bucket,然后更新了时间轮的当前指针, 所以后面的[Add Entry]操作会出现 [时间轮降级] (因为时间范围缩小了)\n");
         addTimerTaskEntry(timerTaskEntry);
         return null;
     }

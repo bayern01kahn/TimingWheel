@@ -77,6 +77,7 @@ public class TimingWheel {
             return false;
         } else if (expiration < currentTime + tickMs) {  //如果已经到期，返回false
             // Already expired
+            System.out.println("当前时间: "+ LocalTime.now()+" || [Add Entry] 过程中发现当前任务到期!! ,过期时间为: "+ timerTaskEntry.getExpirationMs());
             return false;
         } else if (expiration < currentTime + interval) {  //如果在本层范围内
 
@@ -87,11 +88,12 @@ public class TimingWheel {
             bucket.add(timerTaskEntry);  // 添加到槽内的双向链表中
 
             System.out.println("当前时间: "+LocalTime.now()+" || " +
-                    "时间轮处理=> 推进时间("+expiration+") " +
-                    "属于时间轮["+interval+"]:[当前时间("+currentTime+") + 本层最大时间interval("+interval+")]范围("+(currentTime+interval)+") " +
-                    "放入bucket["+slot+"]中 ");
+                    "时间轮处理=> [Add Entry] 推进时间("+expiration+") " +
+                    "< 时间轮["+interval+"]范围("+(currentTime+interval)+"):[当前时间("+currentTime+") + 本层最大时间interval("+interval+")] " +
+                    "[放入] bucket["+slot+"]中 ");
 
             // Set the bucket expiration time
+            System.out.println("当前时间: "+ LocalTime.now()+" || 更新bucket["+slot+"]的过期时间: " + virtualId * tickMs);
             if (bucket.setExpiration(virtualId * tickMs)) {   //更新槽过期时间
                 // The bucket needs to be enqueued because it was an expired bucket
                 // We only need to enqueue the bucket when its expiration time has changed, i.e. the wheel has advanced
@@ -99,14 +101,14 @@ public class TimingWheel {
                 // will pass in the same value and hence return false, thus the bucket with the same expiration will not
                 // be enqueued multiple times.
                 queue.offer(bucket);   // 将槽加入到delayQueue,通过delayQueue来推进时间
-                System.out.println("当前时间: "+ LocalTime.now()+" || 将该bucket存入delayQueue");
+                System.out.println("当前时间: "+ LocalTime.now()+" || 将该bucket["+slot+"]存入delayQueue");
             }
             return true;
         } else {   // 如果超过本层能表示的延迟时间则将任务添加到上层，这里可以看到上层是按需创建的
             System.out.println("当前时间: "+LocalTime.now()+" || " +
-                    "时间轮处理=> 推进时间("+expiration+") " +
-                    "超过时间轮["+interval+"]:[当前时间("+currentTime+") + 本层最大时间interval("+interval+")]范围("+(currentTime+interval)+")" +
-                    ", 移交上层时间轮处理");
+                    "时间轮处理=> [Add Entry] 推进时间("+expiration+") " +
+                    "> 时间轮["+interval+"]范围("+(currentTime+interval)+"):[当前时间("+currentTime+") + 本层最大时间interval("+interval+")]" +
+                    ", 移交 [上层时间轮] 处理");
 
             // Out of the interval. Put it into the parent timer
             if (overflowWheel == null) {
@@ -132,14 +134,14 @@ public class TimingWheel {
              */
             currentTime = timeMs - (timeMs % tickMs);      //修剪 currentTime 为 tickMs的整数倍
 
-            System.out.println("当前时间: "+LocalTime.now()+" ||" +
+            System.out.println("当前时间: "+LocalTime.now()+" || " +
 //                    " Thread: "+Thread.currentThread()+
-                    " 时间轮["+interval+"]" +
+                    "时间轮["+interval+"] " +
 //                    " 起始时间: "+ startMs+
-                    "\n\t\t\t\t\t\t 推进时间: "+timeMs+
+                    "推进时间: "+timeMs+ "  "+
 //                    " (差值: "+(timeMs-startMs)+")"+
-                    "\n\t\t\t\t\t\t 需修剪掉的时间: "+timeMs % tickMs+
-                    "\n\t\t\t\t\t\t 本层时间轮指针: "+ currentTime);
+//                    "\n\t\t\t\t\t\t 需修剪掉的时间: "+timeMs % tickMs+
+                    "更新本层指针: "+ currentTime);
 
             if (overflowWheel != null) {                   //如果存在上级时间轮 则 递归调用 使用当前时间推进上级时间轮
                 overflowWheel.advanceClock(currentTime);

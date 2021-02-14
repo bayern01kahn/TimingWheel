@@ -1,6 +1,7 @@
 package com.codecopyer.timeWheel;
 
 
+import java.time.LocalTime;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,6 +40,7 @@ class TimerTaskList implements Delayed{
      * @return true 如果到期时间被改变
      */
     public boolean setExpiration(Long expirationMs) {
+        System.out.println("当前时间: "+ LocalTime.now()+" || 更新bucket的过期时间: " + expirationMs);
         return expiration.getAndSet(expirationMs) != expirationMs;
     }
 
@@ -113,15 +115,21 @@ class TimerTaskList implements Delayed{
     }
 
     // Remove all task entries and apply the supplied function to each of them
+    /**
+     * @justin 最难理解的一部分:
+     *
+     * 将里面的entry都再次add一次,在这个add(有过期判断)里因task已过期,将被立即提交执行.
+     * 同时reset这个bucket的过期时间, 这样它就可以用来装入新的task了.
+     */
     public void flush(Function<TimerTaskEntry, Void> f) {
         synchronized (this) {
             TimerTaskEntry head = root.next;
             while (head != root) {
-                remove(head);
-                f.apply(head);
+                remove(head);     //把TimerTaskList的任务都取出来
+                f.apply(head);    //重新调用add一遍，add的时候会检查任务是否已经到期
                 head = root.next;
             }
-            expiration.set(-1L);
+            expiration.set(-1L);  //同时reset这个bucket的过期时间, 这样它就可以用来装入新的task了.
         }
     }
 

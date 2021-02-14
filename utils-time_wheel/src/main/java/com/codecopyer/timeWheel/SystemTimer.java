@@ -16,6 +16,9 @@ public class SystemTimer implements Timer, Function<TimerTaskEntry, Void> {
 
     private Integer wheelSize;
 
+    /**
+     * 起始时间
+     */
     private Long startMs;
 
     private DelayQueue<TimerTaskList> delayQueue = new DelayQueue<>();
@@ -59,7 +62,11 @@ public class SystemTimer implements Timer, Function<TimerTaskEntry, Void> {
     public void add(TimerTask timerTask) {
         readLock.lock();
         try {
-            addTimerTaskEntry(new TimerTaskEntry(timerTask, timerTask.getDelayMs() + Time.getHiresClockMs()));
+            Long timeDelayTime = timerTask.getDelayMs();
+            Long currentSystemTime = Time.getHiresClockMs();
+            Long expirationMs = timeDelayTime + currentSystemTime;
+            System.out.println("当前时间: "+ LocalTime.now()+" || 启动时间轮,存入任务, 延迟时间(设置的过期时间("+timeDelayTime+")+当前系统时间("+currentSystemTime+")): "+ expirationMs);
+            addTimerTaskEntry(new TimerTaskEntry(timerTask, expirationMs));
         } finally {
             readLock.unlock();
         }
@@ -79,11 +86,12 @@ public class SystemTimer implements Timer, Function<TimerTaskEntry, Void> {
         try {
             TimerTaskList bucket = delayQueue.poll(timeoutMs, TimeUnit.MILLISECONDS);
             if (bucket != null) {
-                System.out.println("当前时间: "+ LocalTime.now()+" || poll("+timeoutMs+") => success");
+                System.out.println("当前时间: "+ LocalTime.now()+" || poll("+timeoutMs+") => success. 启动时间轮");
                 writeLock.lock();
                 try {
                     while (bucket != null) {
                         timingWheel.advanceClock(bucket.getExpiration());  //时间轮根据 bucket的过期时间来推进
+                        System.out.println("当前时间: "+ LocalTime.now()+" || 时间轮推进结束, 开始尝试执行bucket中所有任务");
                         bucket.flush(this);
                         bucket = delayQueue.poll();
                     }
@@ -120,16 +128,21 @@ public class SystemTimer implements Timer, Function<TimerTaskEntry, Void> {
     }
 
     private void addTimerTaskEntry(TimerTaskEntry timerTaskEntry) {
-        if (!timingWheel.add(timerTaskEntry)) {
+        if (!timingWheel.add(timerTaskEntry)) {   //把timerTaskEntry重新add一遍，add的时候会检查任务是否已经到期
             // Already expired or cancelled
-            if (!timerTaskEntry.cancelled()) {
+            if (!timerTaskEntry.cancelled()) {    //到这里 说明,task 已经过期,那么立即执行.
+                System.out.println("当前时间: "+ LocalTime.now()+" || 尝试执行任务成功,过期时间为: "+ timerTaskEntry.getExpirationMs());
                 taskExecutor.submit(timerTaskEntry.getTimerTask());
             }
-        }
+        } /*else {
+            System.out.println("当前时间: "+ LocalTime.now()+" || 尝试执行任务失败: timeTaskEntry的过期时间在在时间轮本层范围内,则放进自己的bucket中 ");
+        }*/
     }
 
     /**
      * Applies this function to the given argument.
+     *
+     * !!!!!! 把TimerTaskList的任务都取出来重新add一遍，add的时候会检查任务是否已经到期
      *
      * @param timerTaskEntry the function argument
      * @return the function result
